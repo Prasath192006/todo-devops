@@ -8,8 +8,9 @@ app.use(cors());
 app.use(express.json());
 
 let todos = [
-  { id: 1, text: 'Learn Docker', done: false },
-  { id: 2, text: 'Set up CI/CD', done: false },
+  { id: 1, text: 'Learn Docker', done: true },
+  { id: 2, text: 'Set up CI/CD', done: true },
+  { id: 3, text: 'Deploy on render', done: true },
 ];
 let nextId = 3;
 
