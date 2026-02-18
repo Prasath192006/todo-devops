@@ -1,0 +1,81 @@
+# This workflow runs ONLY when you push to 'production' branch
+# Purpose: Full deployment pipeline - test → build → deploy
+# This is the REAL deal - your code goes live after this
+
+name: Deploy to Production
+
+# TRIGGER: When does this run?
+on:
+  push:
+    branches: [ production ]   # Only 'production' branch triggers this
+
+jobs:
+  # ═══════════════════════════════════════════════════════
+  # JOB 1: RUN TESTS (same as test-only.yml)
+  # ═══════════════════════════════════════════════════════
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+        # If tests fail here → entire pipeline STOPS
+        # build and deploy jobs will never run
+
+  # ═══════════════════════════════════════════════════════
+  # JOB 2: BUILD DOCKER IMAGE (only if tests passed)
+  # ═══════════════════════════════════════════════════════
+  build:
+    needs: test                # KEY LINE: Don't start until 'test' succeeds
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Login to Docker Hub so we can push the image
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          # GitHub Secrets - we'll add these in the next step
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          # ${{ }} syntax accesses encrypted secrets
+          # Never hardcode passwords in code!
+
+      # Build the Docker image AND push to Docker Hub in one step
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .             # Use files in current directory
+          push: true             # Upload to Docker Hub after building
+          tags: ${{ secrets.DOCKER_USERNAME }}/todo-app:latest
+          # This creates: yourusername/todo-app:latest on Docker Hub
+
+  # ═══════════════════════════════════════════════════════
+  # JOB 3: DEPLOY (only if build succeeded)
+  # ═══════════════════════════════════════════════════════
+  deploy:
+    needs: build               # KEY LINE: Don't start until 'build' succeeds
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Trigger deployment on Render by calling webhook URL
+      - name: Deploy to Render
+        run: |
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+          echo "✅ Deploy triggered on Render!"
+        # curl = command-line tool to make HTTP requests
+        # This tells Render: "pull latest image from Docker Hub and redeploy"

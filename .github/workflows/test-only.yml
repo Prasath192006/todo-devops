@@ -1,0 +1,43 @@
+# This workflow runs ONLY when you push to the 'main' branch
+# Purpose: Quick feedback - are your tests passing?
+# Does NOT build Docker image or deploy anything
+
+name: Test Only (Main Branch)
+
+# TRIGGER: When does this run?
+on:
+  push:
+    branches: [ main ]        # Only run when 'main' branch gets a push
+  pull_request:
+    branches: [ main ]        # Also run when someone opens a PR to main
+
+jobs:
+  # JOB 1: Run tests
+  test:
+    runs-on: ubuntu-latest    # GitHub spins up a fresh Ubuntu server
+    
+    steps:
+      # Step 1: Download your code from GitHub onto the CI server
+      - name: Checkout code
+        uses: actions/checkout@v3
+        # 'uses' = run a pre-built action from GitHub marketplace
+        # This action clones your repo into the CI server
+
+      # Step 2: Install Node.js on the CI server
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'   # Match your local Node version
+          cache: 'npm'         # Cache node_modules to speed up future runs
+
+      # Step 3: Install all dependencies (including devDependencies)
+      - name: Install dependencies
+        run: npm install
+        # 'run' = execute a shell command
+        # This installs jest, supertest, express, everything
+
+      # Step 4: Run your tests
+      - name: Run tests
+        run: npm test
+        # If this exits with code 1 (fail) → GitHub marks workflow as failed
+        # If this exits with code 0 (pass) → Green checkmark ✅
